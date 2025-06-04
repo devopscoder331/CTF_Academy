@@ -1,0 +1,21 @@
+services:
+  lab1-app:
+    container_name: php_easy_include
+    build:
+      context: app
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    #environment:
+      # Флаг
+      #FLAG: "flag{REDACTED_COMPOSE}"
+    ports:
+      - 20010:80
+    cpus: '0.2'
+    mem_limit: 128M
+    memswap_limit: 128M
+    healthcheck:
+      test: "curl -f http://127.0.0.1/ || exit 1"
+      interval: 60s
+      retries: 5
+      start_period: 20s
+      timeout: 10s
