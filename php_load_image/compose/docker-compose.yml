@@ -1,5 +1,5 @@
 services:
-  lab1-app:
+  php_load_image:
     container_name: php_load_image
     build:
       context: app
