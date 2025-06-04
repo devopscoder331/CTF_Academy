@@ -1,0 +1,30 @@
+FROM ubuntu:20.04
+LABEL org.opencontainers.image.authors="devopscoder331"
+
+# instal dependencies
+RUN set -xe && \
+    apt-get update && apt-get upgrade -y && \
+    apt-get install -y nginx-light php7.4-fpm supervisor htop curl
+
+RUN apt-get install -y vim
+
+# copy config files
+COPY src/configs/nginx /etc/nginx
+COPY src/configs/php/php.ini /etc/php/7.4/fpm/php.ini
+COPY src/configs/supervisor /etc/supervisor/conf.d
+
+# copy flag
+COPY src/flag.txt /
+
+# copy application files
+COPY --chown=www-data:www-data src/html /var/www/html
+
+RUN mkdir /var/www/html/upload && chown www-data:www-data /var/www/html/upload
+
+# Expose
+EXPOSE 80
+
+# Start init process
+CMD supervisord -n -c /etc/supervisor/conf.d/supervisord.conf
+
+
