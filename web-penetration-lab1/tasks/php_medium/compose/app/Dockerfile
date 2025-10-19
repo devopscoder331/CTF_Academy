@@ -32,16 +32,16 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN mkdir -p /var/www/app /run/php
 
 # Copy nginx configuration
-COPY compose/app/nginx/nginx.conf /etc/nginx/nginx.conf
-COPY compose/app/nginx/sites-available/environment.htb /etc/nginx/sites-enabled/environment.htb
-COPY compose/app/nginx/sites-available/default /etc/nginx/sites-enabled/default
+COPY src/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY src/nginx/sites-available/environment.htb /etc/nginx/sites-enabled/environment.htb
+COPY src/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
 # Copy PHP configuration
-COPY compose/app/php/8.2/fpm/php-fpm.conf /etc/php/8.2/fpm/php-fpm.conf
-COPY compose/app/php/8.2/fpm/php.ini /etc/php/8.2/fpm/php.ini
+COPY src/php/8.2/fpm/php-fpm.conf /etc/php/8.2/fpm/php-fpm.conf
+COPY src/php/8.2/fpm/php.ini /etc/php/8.2/fpm/php.ini
 
 # Copy application
-COPY compose/app/app/ /var/www/app/
+COPY src/app/ /var/www/app/
 
 # Set working directory
 WORKDIR /var/www/app
@@ -82,7 +82,7 @@ RUN chown -R www-data:www-data /var/www/app \
     && chmod 664 /var/www/app/database/database.sqlite
 
 # Copy supervisor config
-COPY compose/app/supervisord/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY src/supervisord/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh

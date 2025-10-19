@@ -3,7 +3,7 @@ version: '3.8'
 services:
   environment_htb:
     build:
-      context: ..
+      context: ./app
       dockerfile: Dockerfile
     container_name: environment_htb
     ports:

