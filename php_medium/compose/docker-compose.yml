@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  environment_htb:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: environment_htb
+    ports:
+      - "8010:80"
+    environment:
+      - APP_NAME=Environment
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=http://localhost
+      - APP_VERSION=1.0.0
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/var/www/app/database/database.sqlite
+      - SESSION_DRIVER=file
+      - SESSION_LIFETIME=120
+      - CACHE_DRIVER=file
+      - QUEUE_CONNECTION=sync
+    volumes:
+      - app_storage:/var/www/app/storage
+      - app_database:/var/www/app/database
+    restart: unless-stopped
+    networks:
+      - environment_network
+
+volumes:
+  app_storage:
+  app_database:
+
+networks:
+  environment_network:
+    driver: bridge
