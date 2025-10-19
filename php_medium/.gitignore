@@ -1,0 +1,36 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Laravel
+compose/app/app/vendor/
+compose/app/app/node_modules/
+compose/app/app/storage/logs/*.log
+compose/app/app/storage/framework/cache/*
+compose/app/app/storage/framework/sessions/*
+compose/app/app/storage/framework/views/*
+compose/app/app/bootstrap/cache/*
+compose/app/app/database/database.sqlite
+compose/app/app/.env
+
+# Docker
+.dockerignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+

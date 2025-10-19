@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /login
+Disallow: /logout
+Disallow: /mailing
+Disallow: /upload
+Disallow: /management/
+Disallow: /management/dashboard
+Disallow: /management/profile
+Disallow: /management/info
