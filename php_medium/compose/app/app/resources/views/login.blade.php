@@ -12,9 +12,9 @@
 <div class="container">
       <div class="forms-container">
         <div class="form-control signin-form">
+          <!-- TODO: Remove before production! Test account: tech@environment.htb / TestPass2024 -->
           <form action="/login" method="POST" id="loginForm">
             <h2 style="padding-bottom: 20px;">Marketing Management Portal</h2>
-            @csrf
             <input type="email" placeholder="Email" name="email" id="email" required />
             <input type="password" placeholder="Password" name="password" id="password" required />
             <label style ="padding-top: 10px;">

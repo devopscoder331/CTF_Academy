@@ -11,7 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        // Disable CSRF protection
+        $middleware->validateCsrfTokens(except: ['*']);
+        
+        // Remove XSRF-TOKEN cookie from responses
+        $middleware->append(\App\Http\Middleware\RemoveXsrfCookie::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

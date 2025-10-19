@@ -76,12 +76,6 @@ Route::post('/login', function (Request $request) {
     // TODO: Keep user logged in if he selects "Remember Me?"
     }
 
-    if(App::environment() == "preprod") { //QOL: login directly as me in dev/local/preprod envs
-        $request->session()->regenerate();
-        $request->session()->put('user_id', 1);
-        return redirect('/management/dashboard');
-    }
-
     $user = User::where('email', $email)->first();
 
     if ($user && Hash::check($password, $user->password)) {

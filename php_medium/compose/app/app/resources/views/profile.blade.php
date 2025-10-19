@@ -61,7 +61,6 @@ button:hover {
                     <h2 style="margin-bottom:5px;"><span class="not-bold">Profile Picture</span><h2>
                     <img src=/storage/files/{{ $user->profile_picture }} width=128 style="margin-bottom:20px;"/>
                     <form enctype="multipart/form-data" id="profileUpload">
-                      @csrf
                       <label for="profile-pic" class="custom-file-upload">Choose New Picture</label>
                       <input type="file" id="profile-pic" name="upload" required>
                       <button type="submit">Upload</button>

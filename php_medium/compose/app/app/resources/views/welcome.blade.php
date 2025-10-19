@@ -44,7 +44,6 @@
     <h2>Join Our Mailing List</h2>
     <p style="font-weight: bold">Stay up to date with the latest announcements, and be informed of ways you can help us!</p>
      <form id="mailingListForm">
-       @csrf
        <input type="text" id="email" name="email" placeholder="Email" style="width: 400px; height: 35px; font-size: 15px; border:none; text-indent: 8px;"><br>
        <input type="submit" value="Join!" style="font-size: 15px; width: 400px; margin-top: 10px; height: 30px; background-color: #2a7f62; border: none; color: white; font-weight: bold; cursor: pointer">
      </form>
@@ -60,7 +59,6 @@
             event.preventDefault(); // Prevent the default form submission behavior
 
             const email = document.getElementById('email').value;
-            const csrfToken = document.getElementsByName("_token")[0].value;
             const responseMessage = document.getElementById('responseMessage');
 
             try {
@@ -69,7 +67,7 @@
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: "email=" + email + "&_token=" + csrfToken,
+                    body: "email=" + email,
                 });
 
                 if (response.ok) {
