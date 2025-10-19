@@ -88,6 +88,9 @@ COPY src/supervisord/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Copy flag
+COPY src/flag.txt /flag.txt
+
 EXPOSE 80
 
 ENTRYPOINT ["/entrypoint.sh"]
