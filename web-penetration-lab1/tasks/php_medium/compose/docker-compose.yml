@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: environment_htb
     ports:
-      - "8010:80"
+      - "20013:80"
     environment:
       - APP_NAME=Environment
       - APP_ENV=production

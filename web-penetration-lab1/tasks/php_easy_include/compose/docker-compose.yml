@@ -9,7 +9,7 @@ services:
       # Флаг
       #FLAG: "flag{REDACTED_COMPOSE}"
     ports:
-      - 20010:80
+      - 20011:80
     cpus: '0.2'
     mem_limit: 128M
     memswap_limit: 128M
