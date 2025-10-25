@@ -1,5 +1,8 @@
 ## CTF_Academy
 
+![](assets/banner.png)
+
+
 ### Как запускать таски
 Предварительно установите Docker и Docker Compose.
 
